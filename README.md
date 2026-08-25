@@ -18,11 +18,12 @@ Naya logo + fresh UI (gradient header, bottom tabs).
                        parse hote hain, data phone me hi rehta hai, kahin nahi jaata.
 - Internet          -> Advisor ke API call ke liye (auto).
 
-## AI Advisor setup
-1. console.anthropic.com se ek API key banao (sk-ant-...). Thoda credit add karna padta hai.
-2. App -> Advisor tab -> Settings -> key paste -> Save.
-3. Model default: claude-sonnet-5 (accha). Sasta chahiye to claude-haiku-4-5 likh do.
-4. "Aaj ka insight lo" dabao.
-Key phone me hi save hoti hai; sirf api.anthropic.com ke call me jaati hai.
+## AI Advisor setup (FREE - Google Gemini)
+1. aistudio.google.com pe Google account se login (koi card/paise nahi).
+2. "Get API key" / "Create API key" -> key AIza... se shuru hogi. Copy kar.
+3. App -> Advisor tab -> Settings -> key paste -> Save.
+4. Model default: gemini-2.5-flash (free). "Aaj ka insight lo" dabao.
+Free tier me thodi rate limit hai (~din me kaafi calls), personal use ke liye theek.
+Key phone me hi save; sirf Google ke API call me jaati hai.
 
 Package: com.spectra.lifepilot

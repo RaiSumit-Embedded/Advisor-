@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -57,6 +58,7 @@ data class MoneyUi(
     val needsPermission: Boolean = true,
     val monthSpent: Double = 0.0,
     val monthReceived: Double = 0.0,
+    val monthSaved: Double = 0.0,
     val txns: List<Txn> = emptyList(),
 )
 
@@ -70,7 +72,8 @@ class MoneyViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun load() {
-        _ui.value = _ui.value.copy(loading = true, needsPermission = false)
+        if (_ui.value.needsPermission) return
+        _ui.value = _ui.value.copy(loading = true)
         viewModelScope.launch {
             val txns = withContext(Dispatchers.IO) { readAndParse() }
             val zone = ZoneId.systemDefault()
@@ -82,14 +85,14 @@ class MoneyViewModel(app: Application) : AndroidViewModel(app) {
                     if (it.type == TxnType.DEBIT) spent += it.amount else recv += it.amount
                 }
             }
-            _ui.value = MoneyUi(false, false, spent, recv, txns.take(60))
+            _ui.value = MoneyUi(false, false, spent, recv, recv - spent, txns.take(60))
         }
     }
 
     private fun readAndParse(): List<Txn> {
         val out = mutableListOf<Txn>()
         val resolver = getApplication<Application>().contentResolver
-        val cutoff = System.currentTimeMillis() - 60L * 24 * 3600 * 1000 // 60 days
+        val cutoff = System.currentTimeMillis() - 60L * 24 * 3600 * 1000
         val cursor = resolver.query(
             Telephony.Sms.Inbox.CONTENT_URI,
             arrayOf(Telephony.Sms.BODY, Telephony.Sms.DATE),
@@ -115,22 +118,30 @@ class MoneyViewModel(app: Application) : AndroidViewModel(app) {
 @Composable
 fun MoneyScreen(vm: MoneyViewModel, onRequestPermission: () -> Unit) {
     val ui by vm.ui.collectAsState()
+
+    // Auto-refresh every time this tab opens
+    LaunchedEffect(ui.needsPermission) { if (!ui.needsPermission) vm.load() }
+
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         if (ui.needsPermission) {
             Column(Modifier.fillMaxSize(), Arrangement.Center, Alignment.CenterHorizontally) {
                 Text("Kharche auto-track karo", fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Spacer(Modifier.height(8.dp))
-                Text("Bank/UPI ke transaction SMS padhkar app khud expense banayega.",
+                Text("Bank/UPI ke transaction SMS padhkar app khud expense banayega. Naya SMS aate hi auto-log + notification.",
                     fontSize = 13.sp)
                 Spacer(Modifier.height(16.dp))
                 Button(onClick = onRequestPermission) { Text("SMS access do") }
             }
             return
         }
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MoneyCard(Modifier.weight(1f), "Is mahine kharch", ui.monthSpent, false)
-            MoneyCard(Modifier.weight(1f), "Is mahine aaya", ui.monthReceived, true)
+            MoneyCard(Modifier.weight(1f), "Kharch", ui.monthSpent, false)
+            MoneyCard(Modifier.weight(1f), "Aaya", ui.monthReceived, true)
         }
+        Spacer(Modifier.height(12.dp))
+        SavingCard(ui.monthSaved)
+
         Spacer(Modifier.height(16.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("Recent transactions", fontWeight = FontWeight.Bold, fontSize = 18.sp,
@@ -154,9 +165,28 @@ private fun MoneyCard(modifier: Modifier, label: String, amount: Double, positiv
     Card(modifier, colors = CardDefaults.cardColors(
         containerColor = MaterialTheme.colorScheme.primaryContainer)) {
         Column(Modifier.padding(16.dp)) {
-            Text("\u20B9${"%,.0f".format(amount)}", fontSize = 22.sp, fontWeight = FontWeight.Bold,
+            Text("\u20B9${"%,.0f".format(amount)}", fontSize = 20.sp, fontWeight = FontWeight.Bold,
                 color = if (positive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
-            Text(label, fontSize = 12.sp)
+            Text("Is mahine $label", fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun SavingCard(saved: Double) {
+    val good = saved >= 0
+    Card(Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(
+        containerColor = MaterialTheme.colorScheme.secondaryContainer)) {
+        Row(Modifier.fillMaxWidth().padding(18.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically) {
+            Column {
+                Text("Is mahine ki bachat", fontSize = 13.sp)
+                Text(if (good) "Aage badh rahe ho \uD83D\uDCAA" else "Kharch zyada ho gaya \u26A0\uFE0F", fontSize = 11.sp)
+            }
+            Text("${if (good) "+" else "-"}\u20B9${"%,.0f".format(kotlin.math.abs(saved))}",
+                fontSize = 26.sp, fontWeight = FontWeight.Bold,
+                color = if (good) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error)
         }
     }
 }

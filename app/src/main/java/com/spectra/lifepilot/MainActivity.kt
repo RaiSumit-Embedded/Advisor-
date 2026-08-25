@@ -62,11 +62,23 @@ private fun AppRoot() {
         ActivityResultContracts.RequestPermission()
     ) { granted -> moneyVm.onPermission(granted) }
 
+    // Notification permission (Android 13+) for auto-logged transactions
+    val notifLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
     LaunchedEffect(Unit) {
         val granted = ContextCompat.checkSelfPermission(
             ctx, Manifest.permission.READ_SMS
         ) == PackageManager.PERMISSION_GRANTED
         moneyVm.onPermission(granted)
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.POST_NOTIFICATIONS)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            notifLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     }
 
     val moneyUi by moneyVm.ui.collectAsState()

@@ -9,7 +9,8 @@ class SettingsStore(context: Context) {
         get() = sp.getString("apiKey", "") ?: ""
         set(v) { sp.edit().putString("apiKey", v.trim()).apply() }
 
+    // Free Google AI Studio (Gemini) model by default
     var model: String
-        get() = sp.getString("model", "claude-sonnet-5") ?: "claude-sonnet-5"
+        get() = sp.getString("model", "gemini-2.5-flash") ?: "gemini-2.5-flash"
         set(v) { sp.edit().putString("model", v.trim()).apply() }
 }

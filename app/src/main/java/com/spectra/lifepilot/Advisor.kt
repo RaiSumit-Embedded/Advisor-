@@ -3,7 +3,6 @@ package com.spectra.lifepilot
 import android.app.Application
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -51,7 +50,7 @@ class AdvisorViewModel(app: Application) : AndroidViewModel(app) {
 
     private val system = """
         Tu 'LifePilot', ek no-nonsense personal life coach hai. Hinglish me baat kar (casual Hindi-English mix).
-        Tera kaam: banda ke aaj ke data ko dekh kar usse push karna — health, neend, paisa.
+        Tera kaam: banda ke aaj ke data ko dekh kar usse push karna - health, neend, paisa.
         Rules:
         - Seedhi, punchy baat. Ghumao mat. Motivational lekin real, thoda savage bhi chalega.
         - Pehle 2-3 sharp observation (data ke numbers use kar).
@@ -73,13 +72,14 @@ class AdvisorViewModel(app: Application) : AndroidViewModel(app) {
             append("Aaj ki neend: ${lastSleepMin / 60}h ${lastSleepMin % 60}m. ")
             append("Is mahine kharch: Rs.${"%,.0f".format(monthSpent)}. ")
             append("Is mahine aaya: Rs.${"%,.0f".format(monthReceived)}. ")
-            append("In numbers pe mera aaj ka coaching de.")
+            append("Is mahine bachat: Rs.${"%,.0f".format(monthReceived - monthSpent)}. ")
+            append("In numbers pe mera aaj ka coaching de - health aur bachat dono pe.")
         }
 
         _state.value = AdvisorState.Loading
         viewModelScope.launch {
             _state.value = try {
-                val text = withContext(Dispatchers.IO) { callClaude(key, settings.model, system, summary) }
+                val text = withContext(Dispatchers.IO) { callGemini(key, settings.model, system, summary) }
                 AdvisorState.Result(text)
             } catch (e: Exception) {
                 AdvisorState.Error(e.message ?: "Kuch gadbad ho gayi")
@@ -87,35 +87,40 @@ class AdvisorViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun callClaude(key: String, model: String, sys: String, user: String): String {
-        val conn = URL("https://api.anthropic.com/v1/messages").openConnection() as HttpURLConnection
+    /** Google AI Studio (Gemini) free-tier call. */
+    private fun callGemini(key: String, model: String, sys: String, user: String): String {
+        val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent")
+        val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
         conn.connectTimeout = 20000
         conn.readTimeout = 40000
-        conn.setRequestProperty("x-api-key", key)
-        conn.setRequestProperty("anthropic-version", "2023-06-01")
+        conn.setRequestProperty("x-goog-api-key", key)
         conn.setRequestProperty("content-type", "application/json")
         conn.doOutput = true
 
         val body = JSONObject()
-            .put("model", model)
-            .put("max_tokens", 500)
-            .put("system", sys)
-            .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", user)))
+            .put("systemInstruction", JSONObject()
+                .put("parts", JSONArray().put(JSONObject().put("text", sys))))
+            .put("contents", JSONArray().put(JSONObject()
+                .put("role", "user")
+                .put("parts", JSONArray().put(JSONObject().put("text", user)))))
+            .put("generationConfig", JSONObject().put("maxOutputTokens", 600))
 
         conn.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
 
         val code = conn.responseCode
         val resp = (if (code in 200..299) conn.inputStream else conn.errorStream)
             .bufferedReader().use { it.readText() }
-        if (code !in 200..299) throw Exception("API $code: ${resp.take(200)}")
+        if (code !in 200..299) throw Exception("API $code: ${resp.take(240)}")
 
-        val content = JSONObject(resp).getJSONArray("content")
-        for (i in 0 until content.length()) {
-            val b = content.getJSONObject(i)
-            if (b.optString("type") == "text") return b.getString("text").trim()
-        }
-        return "(no response)"
+        val json = JSONObject(resp)
+        val candidates = json.optJSONArray("candidates")
+            ?: throw Exception("No response: ${resp.take(200)}")
+        if (candidates.length() == 0) throw Exception("Empty response")
+        val parts = candidates.getJSONObject(0).getJSONObject("content").getJSONArray("parts")
+        val sb = StringBuilder()
+        for (i in 0 until parts.length()) sb.append(parts.getJSONObject(i).optString("text"))
+        return sb.toString().trim().ifBlank { "(no text)" }
     }
 }
 
@@ -127,13 +132,12 @@ fun AdvisorScreen(vm: AdvisorViewModel, monthSpent: Double, monthReceived: Doubl
     Column(Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("AI Advisor", fontWeight = FontWeight.Bold, fontSize = 20.sp, modifier = Modifier.weight(1f))
-            TextButton(onClick = { showSettings = !showSettings }) { Text(if (showSettings) "Chhupao" else "Settings") }
+            TextButton(onClick = { showSettings = !showSettings }) {
+                Text(if (showSettings) "Chhupao" else "Settings")
+            }
         }
 
-        if (showSettings) {
-            KeySettings(vm)
-            Spacer(Modifier.height(12.dp))
-        }
+        if (showSettings) { KeySettings(vm); Spacer(Modifier.height(12.dp)) }
 
         Button(
             onClick = { vm.ask(monthSpent, monthReceived) },
@@ -144,10 +148,10 @@ fun AdvisorScreen(vm: AdvisorViewModel, monthSpent: Double, monthReceived: Doubl
         Spacer(Modifier.height(16.dp))
 
         when (val s = state) {
-            is AdvisorState.Idle -> Text("Button dabao — data ke hisaab se aaj ka coaching milega.", fontSize = 13.sp)
+            is AdvisorState.Idle -> Text("Button dabao - data ke hisaab se aaj ka coaching milega.", fontSize = 13.sp)
             is AdvisorState.NeedKey -> {
                 LaunchedEffect(Unit) { showSettings = true }
-                Text("Pehle apni Anthropic API key daalo (Settings me).",
+                Text("Pehle apni free Gemini API key daalo (Settings me).",
                     color = MaterialTheme.colorScheme.error)
             }
             is AdvisorState.Loading -> Row(verticalAlignment = Alignment.CenterVertically) {
@@ -170,10 +174,10 @@ private fun KeySettings(vm: AdvisorViewModel) {
     var model by remember { mutableStateOf(vm.model) }
     Card {
         Column(Modifier.padding(16.dp)) {
-            Text("Anthropic API key", fontWeight = FontWeight.Bold)
+            Text("Gemini API key (FREE)", fontWeight = FontWeight.Bold)
             OutlinedTextField(
                 value = key, onValueChange = { key = it },
-                placeholder = { Text("sk-ant-...") },
+                placeholder = { Text("AIza...") },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth()
@@ -183,13 +187,12 @@ private fun KeySettings(vm: AdvisorViewModel) {
                 value = model, onValueChange = { model = it },
                 label = { Text("Model") },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions.Default,
                 modifier = Modifier.fillMaxWidth()
             )
             Spacer(Modifier.height(8.dp))
             Button(onClick = { vm.saveKey(key); vm.saveModel(model) }) { Text("Save") }
             Spacer(Modifier.height(6.dp))
-            Text("Key console.anthropic.com se milegi. Phone me hi save hoti hai, kahin bheji nahi jaati (sirf API call me).",
+            Text("Key aistudio.google.com se FREE milegi (koi card nahi). Phone me hi save hoti hai. Default model gemini-2.5-flash free hai.",
                 fontSize = 11.sp)
         }
     }
