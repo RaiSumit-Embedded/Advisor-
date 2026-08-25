@@ -7,11 +7,27 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val Teal = Color(0xFF00838F)
-private val TealLight = Color(0xFF4DD0E1)
+// Brand palette
+val BrandCyan = Color(0xFF00C2CB)
+val BrandBlue = Color(0xFF0066A6)
+val BrandInk = Color(0xFF0B2027)
 
-private val LightColors = lightColorScheme(primary = Teal, secondary = Teal)
-private val DarkColors = darkColorScheme(primary = TealLight, secondary = TealLight)
+private val LightColors = lightColorScheme(
+    primary = BrandBlue,
+    onPrimary = Color.White,
+    secondary = BrandCyan,
+    primaryContainer = Color(0xFFCDEFF3),
+    onPrimaryContainer = BrandInk,
+    secondaryContainer = Color(0xFFE3F6F8),
+)
+private val DarkColors = darkColorScheme(
+    primary = BrandCyan,
+    onPrimary = BrandInk,
+    secondary = BrandCyan,
+    primaryContainer = Color(0xFF0E3A42),
+    onPrimaryContainer = Color(0xFFCDEFF3),
+    secondaryContainer = Color(0xFF12313A),
+)
 
 @Composable
 fun LifePilotTheme(content: @Composable () -> Unit) {

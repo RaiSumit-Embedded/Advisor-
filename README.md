@@ -1,22 +1,28 @@
-# LifePilot — Slice 1 (no watch needed)
+# LifePilot — v0.2 (Health + Finance + AI Advisor)
 
-Steps = phone ka built-in step-counter sensor (jeb me phone -> steps khud ginega).
-Neend = manually log (slider se ghante). Sab data phone me hi save. 7-din history.
+3 tabs:
+- HOME   : steps (phone sensor) + neend (manual log), 7-din history
+- PAISA   : bank/UPI transaction SMS auto-read -> is mahine kharch/aaya + list
+- ADVISOR : tera data AI ko dekar aaj ka sharp coaching (Claude API)
 
-## APK banao — OPTION A: GitHub Actions (no Android Studio) ⭐
-1. github.com pe free account + "New repository".
-2. Is folder ke SAARE files/folders upload karo (.github folder bhi zaroor).
-3. "Actions" tab pe build khud chalega (~3-5 min).
-4. Green tick -> run kholo -> "Artifacts" -> "LifePilot-debug-apk" download -> andar app-debug.apk.
-5. Phone pe install (Settings me "unknown apps" allow).
+Naya logo + fresh UI (gradient header, bottom tabs).
 
-## OPTION B: Android Studio
-File > Open > yeh folder -> Run, ya Build > Build APK(s).
+## APK banao (GitHub Actions, no Android Studio)
+1. Naye/changed files repo me upload karo (neeche "update kaise kare" dekho).
+2. Commit -> "Actions" tab -> build (~4 min) -> green tick.
+3. Run kholo -> Artifacts -> LifePilot-debug-apk -> download -> app-debug.apk install.
 
-## Pehli baar app me
-- App khulte hi "Physical Activity" permission maangega -> Allow (iske bina steps 0).
-- Thoda chalo, phone jeb me rakho -> "Aaj ke steps" badhega.
-- Neche "Neend log" FAB -> slider se ghante set -> Save.
+## Permissions (pehli baar app me)
+- Physical Activity  -> steps ke liye (Home tab).
+- SMS               -> Paisa tab me "SMS access do" dabao. Sirf transaction SMS
+                       parse hote hain, data phone me hi rehta hai, kahin nahi jaata.
+- Internet          -> Advisor ke API call ke liye (auto).
 
-Note: kuch phones (aur emulator) me step sensor nahi hota -> app batayega, steps 0 rahenge.
+## AI Advisor setup
+1. console.anthropic.com se ek API key banao (sk-ant-...). Thoda credit add karna padta hai.
+2. App -> Advisor tab -> Settings -> key paste -> Save.
+3. Model default: claude-sonnet-5 (accha). Sasta chahiye to claude-haiku-4-5 likh do.
+4. "Aaj ka insight lo" dabao.
+Key phone me hi save hoti hai; sirf api.anthropic.com ke call me jaati hai.
+
 Package: com.spectra.lifepilot
