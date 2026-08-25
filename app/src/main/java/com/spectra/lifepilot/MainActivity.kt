@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.DirectionsWalk
 import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,7 +39,7 @@ class MainActivity : ComponentActivity() {
         setContent { LifePilotTheme { DashboardScreen() } }
     }
 }
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(vm: DashboardViewModel = viewModel()) {
     val ctx = LocalContext.current
